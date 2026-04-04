@@ -107,7 +107,7 @@ robot_urdf_xml = urdf_generator.to_string()
 ```bash
 source install/setup.bash
 
-xmacro4sdf src/pb2025_robot_description/resource/xmacro/simulation_robot.sdf.xmacro > src/pb2025_robot_description/resource/xmacro/simulation_robot.sdf
+xmacro4sdf src/simulation/pb2025_robot_description/resource/xmacro/simulation_robot.sdf.xmacro > src/simulation/pb2025_robot_description/resource/xmacro/simulation_robot.sdf
 ```
 
 ## 3. Subscribed Topics

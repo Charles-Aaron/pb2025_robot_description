@@ -15,7 +15,7 @@ from launch_ros.descriptions import ParameterFile
 from nav2_common.launch import RewrittenYaml
 from sdformat_tools.urdf_generator import UrdfGenerator
 from xmacro.xmacro4sdf import XMLMacro4sdf
-
+from launch_ros.actions import PushRosNamespace, SetRemap
 
 def launch_setup(context: LaunchContext) -> list:
     """
@@ -23,7 +23,8 @@ def launch_setup(context: LaunchContext) -> list:
     But it is too hacky and not recommended.
     """
 
-    namespace = LaunchConfiguration("namespace")
+    # namespace = LaunchConfiguration("namespace")
+    namespace = "red_standard_robot1" 
     use_sim_time = LaunchConfiguration("use_sim_time")
     params_file = LaunchConfiguration("params_file")
     rviz_config_file = LaunchConfiguration("rviz_config_file")
@@ -46,11 +47,11 @@ def launch_setup(context: LaunchContext) -> list:
 
     # Create our own temporary YAML files that include substitutions
     param_substitutions = {"use_sim_time": use_sim_time}
-
     configured_params = ParameterFile(
         RewrittenYaml(
             source_file=params_file,
-            root_key=namespace,
+            # root_key=namespace,
+            root_key="red_standard_robot1",
             param_rewrites=param_substitutions,
             convert_types=True,
         ),
@@ -65,28 +66,35 @@ def launch_setup(context: LaunchContext) -> list:
 
     bringup_cmd_group = GroupAction(
         [
-            Node(
-                package="joint_state_publisher",
-                executable="joint_state_publisher",
-                name="joint_state_publisher",
-                output="screen",
-                respawn=use_respawn,
-                respawn_delay=2.0,
-                parameters=[configured_params],
-                arguments=["--ros-args", "--log-level", log_level],
-            ),
-            Node(
-                package="robot_state_publisher",
-                executable="robot_state_publisher",
-                output="screen",
-                respawn=use_respawn,
-                respawn_delay=2.0,
-                parameters=[
-                    configured_params,
-                    {"robot_description": robot_urdf_xml},
-                ],
-                arguments=["--ros-args", "--log-level", log_level],
-            ),
+          PushRosNamespace(namespace=namespace),
+          SetRemap("/tf", "tf"),
+          SetRemap("/tf_static", "tf_static"),
+
+           Node(
+            package="joint_state_publisher",
+            executable="joint_state_publisher",
+            name="joint_state_publisher",
+            # namespace=namespace,  # 关键修复：添加命名空间绑定
+            output="screen",
+            respawn=use_respawn,
+            respawn_delay=2.0,
+            parameters=[configured_params],
+            arguments=["--ros-args", "--log-level", log_level],
+        ),
+           Node(
+            package="robot_state_publisher",
+            executable="robot_state_publisher",
+            name="robot_state_publisher",
+            # namespace=namespace,  # 关键修复：添加命名空间绑定
+            output="screen",
+            respawn=use_respawn,
+            respawn_delay=2.0,
+            parameters=[
+                configured_params,
+                {"robot_description": robot_urdf_xml},
+            ],
+            arguments=["--ros-args", "--log-level", log_level],
+        ),
             Node(
                 condition=IfCondition(use_rviz),
                 package="rviz2",
@@ -110,7 +118,7 @@ def generate_launch_description():
 
     declare_namespace_cmd = DeclareLaunchArgument(
         "namespace",
-        default_value="",
+        default_value="red_standard_robot1",
         description="Top-level namespace",
     )
 
@@ -122,7 +130,7 @@ def generate_launch_description():
 
     declare_robot_name_cmd = DeclareLaunchArgument(
         "robot_name",
-        default_value="simulation_robot",
+        default_value="pb2025_sentry_robot",
         description="The file name of the robot xmacro to be used",
     )
 
@@ -150,7 +158,7 @@ def generate_launch_description():
     )
 
     declare_use_rviz_cmd = DeclareLaunchArgument(
-        "use_rviz", default_value="True", description="Whether to start RViz"
+        "use_rviz", default_value="False", description="Whether to start RViz"
     )
 
     declare_use_respawn_cmd = DeclareLaunchArgument(
