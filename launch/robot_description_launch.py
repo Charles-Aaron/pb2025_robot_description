@@ -1,6 +1,9 @@
 import os
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import (
+    get_package_share_directory,
+    get_packages_with_prefixes,
+)
 from launch import LaunchContext, LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -64,37 +67,42 @@ def launch_setup(context: LaunchContext) -> list:
 
     colorized_output_envvar = SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1")
 
-    bringup_cmd_group = GroupAction(
-        [
-          PushRosNamespace(namespace=namespace),
-          SetRemap("/tf", "tf"),
-          SetRemap("/tf_static", "tf_static"),
+    bringup_actions = [
+        PushRosNamespace(namespace=namespace),
+        SetRemap("/tf", "tf"),
+        SetRemap("/tf_static", "tf_static"),
+    ]
 
-           Node(
-            package="joint_state_publisher",
-            executable="joint_state_publisher",
-            name="joint_state_publisher",
-            # namespace=namespace,  # 关键修复：添加命名空间绑定
-            output="screen",
-            respawn=use_respawn,
-            respawn_delay=2.0,
-            parameters=[configured_params],
-            arguments=["--ros-args", "--log-level", log_level],
-        ),
-           Node(
-            package="robot_state_publisher",
-            executable="robot_state_publisher",
-            name="robot_state_publisher",
-            # namespace=namespace,  # 关键修复：添加命名空间绑定
-            output="screen",
-            respawn=use_respawn,
-            respawn_delay=2.0,
-            parameters=[
-                configured_params,
-                {"robot_description": robot_urdf_xml},
-            ],
-            arguments=["--ros-args", "--log-level", log_level],
-        ),
+    available_packages = get_packages_with_prefixes()
+    if "joint_state_publisher" in available_packages:
+        bringup_actions.append(
+            Node(
+                package="joint_state_publisher",
+                executable="joint_state_publisher",
+                name="joint_state_publisher",
+                output="screen",
+                respawn=use_respawn,
+                respawn_delay=2.0,
+                parameters=[configured_params],
+                arguments=["--ros-args", "--log-level", log_level],
+            )
+        )
+
+    bringup_actions.extend(
+        [
+            Node(
+                package="robot_state_publisher",
+                executable="robot_state_publisher",
+                name="robot_state_publisher",
+                output="screen",
+                respawn=use_respawn,
+                respawn_delay=2.0,
+                parameters=[
+                    configured_params,
+                    {"robot_description": robot_urdf_xml},
+                ],
+                arguments=["--ros-args", "--log-level", log_level],
+            ),
             Node(
                 condition=IfCondition(use_rviz),
                 package="rviz2",
@@ -104,6 +112,8 @@ def launch_setup(context: LaunchContext) -> list:
             ),
         ]
     )
+
+    bringup_cmd_group = GroupAction(bringup_actions)
 
     return [
         stdout_linebuf_envvar,
